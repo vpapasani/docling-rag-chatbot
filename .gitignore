@@ -1,0 +1,5 @@
+# Exclude environment variable files
+.env
+
+# ...existing code or other ignores...
+

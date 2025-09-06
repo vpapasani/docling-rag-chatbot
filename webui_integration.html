@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>RAG Chatbot</title>
+  <style>
+    body {
+      font-family: system-ui, Segoe UI, Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f6fa;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      background: #1f6feb;
+      color: white;
+      padding: 12px 20px;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+    .msg {
+      max-width: 80%;
+      margin-bottom: 15px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      line-height: 1.4;
+    }
+    .user {
+      background: #1f6feb;
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 0;
+    }
+    .bot {
+      background: white;
+      color: #111;
+      margin-right: auto;
+      border-bottom-left-radius: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .sources {
+      font-size: 0.85rem;
+      margin-top: 6px;
+      color: #555;
+    }
+    .input-bar {
+      display: flex;
+      padding: 12px;
+      background: white;
+      border-top: 1px solid #ddd;
+    }
+    .input-bar input {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    .input-bar button {
+      margin-left: 8px;
+      padding: 0 20px;
+      background: #1f6feb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    .input-bar button:hover {
+      background: #1554a0;
+    }
+  </style>
+</head>
+<body>
+  <header>RAG Chatbot</header>
+  <div class="messages" id="messages"></div>
+  <div class="input-bar">
+    <input id="input" placeholder="Ask about procurement, security or HR Bylaws docs..." />
+    <button id="send">Send</button>
+  </div>
+
+<script>
+const API = (new URLSearchParams(location.search)).get('api') || 'http://localhost:8000/chat';
+
+function appendMessage(who, text, sources=[]) {
+  const msg = document.createElement('div');
+  msg.className = `msg ${who}`;
+  msg.innerHTML = text.replace(/\n/g, '<br/>');
+
+  if (sources.length > 0) {
+    const srcDiv = document.createElement('div');
+    srcDiv.className = 'sources';
+    srcDiv.innerHTML = "<strong>Sources:</strong><br>" +
+      sources.map(s => `[${s.source} page ${s.page}] ${s.snippet}...`).join('<br>');
+    msg.appendChild(srcDiv);
+  }
+
+  document.getElementById('messages').appendChild(msg);
+  document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+}
+
+document.getElementById('send').onclick = async () => {
+  const q = document.getElementById('input').value.trim();
+  if (!q) return;
+  appendMessage('user', q);
+  document.getElementById('input').value = '';
+  appendMessage('bot', '…thinking…');
+
+  try {
+    const resp = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: 'local-session', message: q, top_k: 6 })
+    });
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+    const data = await resp.json();
+
+    // Remove the thinking message
+    const msgs = document.querySelectorAll('.msg.bot');
+    msgs[msgs.length - 1].remove();
+
+    appendMessage('bot', data.answer, data.sources || []);
+  } catch (err) {
+    const msgs = document.querySelectorAll('.msg.bot');
+    msgs[msgs.length - 1].remove();
+    appendMessage('bot', `❌ Failed to connect: ${err.message}`);
+  }
+};
+
+// Press Enter to send
+document.getElementById('input').addEventListener('keypress', e => {
+  if (e.key === 'Enter') document.getElementById('send').click();
+});
+</script>
+</body>
+</html>
