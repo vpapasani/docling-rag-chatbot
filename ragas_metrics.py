@@ -105,7 +105,7 @@ dataset = Dataset.from_dict({
 })
 
 # -----------------------------
-# RunConfig for stable execution
+# RunConfig for stable execution, number of workers
 # -----------------------------
 run_config = RunConfig(
     max_workers=2,      # control parallelism
